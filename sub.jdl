@@ -14,7 +14,7 @@ stream_error = True
 #  Input files land in the starting dir of the job
 #  Output files land where the job was submitted 
 #    (can be changed with transfer_output_remaps)
-transfer_input_files = ../requirements.txt,../recoil.py,../helpers.py
+transfer_input_files = ../requirements.txt,../recoil.py,../helpers.py,../evaluation.py
 
 when_to_transfer_output = ON_EXIT
 transfer_output_files = output/
