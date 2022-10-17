@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 import torch.optim as optim
 import numpy as np
 import matplotlib
+import os
 
 from os.path import exists
 from helpers import *
@@ -38,7 +39,7 @@ plt.rcParams.update({'axes.labelsize': 14})
 
 parser = ArgumentParser()
 parser.add_argument("-c", "--cuda", dest="cuda", default=0, type=int, help='Cuda number')
-parser.add_argument("--batch", dest="batch", default=5000, type=int, help='batch size')
+parser.add_argument("--batch", dest="batch", default=50000, type=int, help='batch size')
 parser.add_argument("--lr", dest="lr", default=0.001, type=float, help='learning rate')
 parser.add_argument("--test", dest="test", default=0, type=int, help='Test run {True, False}')
 
@@ -47,10 +48,12 @@ parser.add_argument("--nn-hidden", dest="nn_hidden", default=2, type=int, help='
 parser.add_argument("--nn-nodes", dest="nn_nodes", default=150, type=int, help='Number of hidden nodes for NN')
 
 args = parser.parse_args()
+print(args)
 
 folder = 'output/'
 ensure_dir(folder)
-device = torch.device('cuda:'+str(args.cuda))
+
+device = torch.device(args.cuda)
 
 if exists('/ceph/lsowa/recoil/dt.root'):
     dfdata = load_from_root('/ceph/lsowa/recoil/dt.root', test=args.test)
@@ -129,6 +132,11 @@ for k in range(args.flows):
     model.append(Fm.RNVPCouplingBlock, subnet_constructor=mlp_constructor, 
                     clamp=2, cond=0, cond_shape=(cmc.shape[1],))
 
+use_dataparallel = os.uname()[1] != 'deepthought_' and torch.cuda.device_count() > 1
+if use_dataparallel:
+    model = nn.DataParallel(model, device_ids=list(range(0,torch.cuda.device_count())))#
+    #model = nn.parallel.DistributedDataParallel(model, device_ids=list(range(0,2)))
+
 #
 # Training
 #
@@ -158,6 +166,7 @@ nbatches = len(loader)
 stopper=0
 best_loss=np.inf
 epoch = 0
+loss_val = np.inf
 best_model_dict = None
 while stopper<=15:
     epo_loss = 0
@@ -179,6 +188,7 @@ while stopper<=15:
     
     # validation
     z, log_jac = model(data_val.float(), c=[cdata_val.float()])
+    #z, log_jac = evaluate_sequential(model, data_val.float(), cond=cdata_val.float())
     loss_val = nll(z, log_jac)
     loss_val = loss_val.cpu().detach().numpy()
     losses_val.append(loss_val)
@@ -205,7 +215,12 @@ plt.ylabel('Loss')
 plt.legend()
 plt.savefig(folder+'loss.pdf')
 
+
 model.load_state_dict(best_model_dict)
+
+if use_dataparallel:
+    model = model.module # unwrap from DataParallel
+
 torch.save(model.state_dict(), folder+'model.pt')
 os.system('cp ' + os.path.basename(__file__) + ' ' + folder + 'code.py') 
 

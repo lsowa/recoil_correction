@@ -11,13 +11,12 @@ pip install --upgrade pip
 pip install -r requirements.txt
 pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
 
-batch = 50000
-flows = 8
-nn_hidden = 3
-nn_nodes = 200
+batch=2000
+flows=8
+nn_hidden=3
+nn_nodes=200
+testrun=0
 
-test = 2
-
-python recoil.py --batch $batch --flows $flows --nn-hidden $nn_hidden --nn-nodes $nn_nodes --test $test
-python evaluation.py --flows $flows --nn-hidden $nn_hidden --nn-nodes $nn_nodes --test $test --model 'output/model.pt' --output 'output/'
+python recoil.py --batch $batch --flows $flows --nn-hidden $nn_hidden --nn-nodes $nn_nodes --test $testrun
+python evaluation.py --flows $flows --nn-hidden $nn_hidden --nn-nodes $nn_nodes --test $testrun --model 'output/model.pt' --output 'output/'
 

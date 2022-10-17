@@ -25,7 +25,7 @@ transfer_output_files = output/
 +RequestWalltime = 3600*10
 
 #  single CPU
-RequestCPUs = 8
+RequestCPUs = 10
 
 # RAM (in MB)
 RequestMemory = 300000

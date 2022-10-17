@@ -106,16 +106,16 @@ for k in range(args.flows):
 model.load_state_dict(torch.load(args.model))
 
 model.cpu()
-z = evaluate_sequential(model, data.float(), cond=cdata.float())
+z, _ = evaluate_sequential(model, data.float(), cond=cdata.float())
 gaussian = pz.sample((100000, ))
 density_2d(z.cpu().detach().numpy(), gaussian.cpu().detach().numpy(), 
-            dist_label=r'target gaussian $z$', data_label=r'model(y, $\mathrm{cond}_\mathrm{Data}$)= $\hat{z}$', 
+            line_label=r'target gaussian $z$', hist_label=r'model(y, $\mathrm{cond}_\mathrm{Data}$)= $\hat{z}$', 
             xlim = [-3, 3], ylim = [-3, 3], save_as=args.output+'2d_gaussian_data.pdf')
 
-z = evaluate_sequential(model, mc.float(), cond=cmc.float())
+z, _ = evaluate_sequential(model, mc.float(), cond=cmc.float())
 gaussian = pz.sample((100000, ))
 density_2d(z.cpu().detach().numpy(), gaussian.cpu().detach().numpy(), 
-            dist_label=r'target gaussian $z$', data_label=r'model(y, $\mathrm{cond}_\mathrm{Data}$)= $\hat{z}$', 
+            line_label=r'target gaussian $z$', hist_label=r'model(y, $\mathrm{cond}_\mathrm{MC}$)= $\hat{z}$', 
             xlim = [-3, 3], ylim = [-3, 3], save_as=args.output+'2d_gaussian_mc.pdf')
 
 # +
@@ -123,22 +123,27 @@ density_2d(z.cpu().detach().numpy(), gaussian.cpu().detach().numpy(),
 # Predict y
 
 z = pz.sample((cmc.shape[0], ))
-u = evaluate_sequential(model, z, cmc.float(), rev=True)
-u = u.cpu().detach().numpy()
+u, _ = evaluate_sequential(model, z, cmc.float(), rev=True)
 
+u = u.cpu().detach().numpy()
 u = input_scaler.inverse_transform(u)
+
 data = input_scaler.inverse_transform(data)
 mc = input_scaler.inverse_transform(mc)
 
 # -
 
 density_2d(u, data, 
-            dist_label=r'$u^\mathrm{Data}_\parallel$', data_label=r'model(z, $\mathrm{cond}_\mathrm{MC}$)=$\hat{u_\parallel}$', 
-            xlim = [-160, 100], ylim = [-80, 30], save_as=args.output+'2d_model_data.pdf')
+            line_label=r'$u^\mathrm{MC}$', hist_label=r'model(z, $\mathrm{cond}_\mathrm{MC}$)=$\hat{u}$', 
+            xlim = [-160, 100], ylim = [-80, 30], save_as=args.output+'2d_comp_umc_to_data.pdf')
 
 density_2d(u, mc, 
-            dist_label=r'$u^\mathrm{MC}_\parallel$', data_label=r'model(z, $\mathrm{cond}_\mathrm{MC}$)=$\hat{u_\parallel}$', 
-            xlim = [-160, 100], ylim = [-80, 30], save_as=args.output+'2d_model_mc.pdf')
+            line_label=r'$u^\mathrm{MC}$', hist_label=r'model(z, $\mathrm{cond}_\mathrm{MC}$)=$\hat{u}$', 
+            xlim = [-160, 100], ylim = [-80, 30], save_as=args.output+'2d_comp_umc_to_mc.pdf')
+
+
+
+
 
 # # ### Compare MC -> Data
 
@@ -147,21 +152,6 @@ interval = [-170, 100]
 _ = plt.hist(u[:,0], density=True, bins=100, range=interval, label=r'model(z,$c^\mathrm{MC}$)=$u_\parallel$')
 _ = plt.hist(data[:,0], histtype=u'step', density=True, bins=100, 
                 range=interval, linewidth=2, color='black', label=r'$u^\mathrm{Data}_\parallel$')
-_ = plt.hist(dfmc['uP1_uncorrected'].values, histtype=u'step', density=True, 
-                bins=100, range=interval, linewidth=2, color='red', label=r'$u^\mathrm{MC}_\parallel$ uncorrected')
-plt.xlabel(r'$u_\parallel$')
-plt.ylabel('a. u.')
-plt.legend()
-plt.savefig(args.output+'u_parallel.pdf')
-plt.clf()
-
-
-
-# u perp
-interval = [-80, 80]
-_ = plt.hist(u[:,1], density=True, bins=100, range=interval, label=r'model(z,$c^\mathrm{MC}$)=$u_\perp $')
-_ = plt.hist(data[:,1], histtype=u'step', density=True, bins=100, range=interval, 
-                linewidth=2, color='black', label=r'$u^\mathrm{Data}_\perp $')
 _ = plt.hist(dfmc['uP2_uncorrected'].values, histtype=u'step', density=True, bins=100, 
                 range=interval, linewidth=2, color='red', label=r'$u^\mathrm{MC}_\perp $ uncorrected')
 plt.xlabel(r'$u_\perp$')
@@ -218,11 +208,28 @@ csingle_event = torch.concat([cmc[100,:].unsqueeze(0)]*10000)
 
 # +
 z = pz.sample((csingle_event.shape[0], ))
-z = evaluate_sequential(model, z, cond=csingle_event.float(), rev=True)
+u, _ = evaluate_sequential(model, z, cond=csingle_event.float(), rev=True)
 
 u = input_scaler.inverse_transform(u)
 # -
 
 density_2d(u, mc, 
-            dist_label=r'target $y_\mathrm{MC}$', data_label=r'model(z, $\mathrm{cond}^\mathrm{fixed}_\mathrm{MC}$)=$\hat{y}$', 
+            line_label=r'target $y_\mathrm{MC}$', hist_label=r'model(z, $\mathrm{cond}^\mathrm{fixed}_\mathrm{MC}$)=$\hat{y}$', 
             xlim = [-160, 100], ylim = [-80, 30], save_as=args.output+'fixedevent.pdf')
+
+z = pz.sample((cdata[:100000,:].shape[0], ))
+layerwise2d(model, z, cond=cdata[:100000,:], save_path=args.output+'layerwise.pdf', xlim=[-150, 100], ylim=[-80, 30], input_scaler=input_scaler)
+
+for cond_no, cond_name in enumerate(cond):
+    condition_correlation(model=model,
+                            cond=cdata,
+                            cond_no=cond_no,
+                            deltas=np.linspace(-3, 3, 21),
+                            input_scaler=input_scaler,
+                            save_path=args.output+'cond_scan_' + cond_name + '.pdf',
+                            cond_name= r'$\Delta$',
+                            xlim=[-100, 80],
+                            device=torch.device(0),
+                            title = cond_name + r'+$\Delta\cdot \sigma_\mathrm(' + cond_name + ')$')
+    print(cond_name, 'done')
+
