@@ -1,5 +1,5 @@
 ## Executable that will be run in job (has to be executable)
-Executable = ../job.sh
+Executable = ../ensemble.sh
 
 ## Output/Error/Log files 
 Output = ../condor_jobs/job_$(Cluster)_$(Process).out
@@ -14,7 +14,7 @@ stream_error = True
 #  Input files land in the starting dir of the job
 #  Output files land where the job was submitted 
 #    (can be changed with transfer_output_remaps)
-transfer_input_files = ../requirements.txt,../recoil.py,../helpers.py,../evaluation.py
+transfer_input_files = ../requirements.txt,../helpers.py,../nn.py
 
 when_to_transfer_output = ON_EXIT
 transfer_output_files = output/
@@ -25,16 +25,17 @@ transfer_output_files = output/
 +RequestWalltime = 3600*10
 
 #  single CPU
-RequestCPUs = 10
+RequestCPUs = 6
 
 # RAM (in MB)
-RequestMemory = 200000
+RequestMemory = 100000
 
 #  24GB scratch space (in kB)
 request_disk = 24000000
 
 #  1 GPU
-request_GPUs = 4
+request_GPUs = 1
+
 # Only available on TOpAS -> remote job
 +RemoteJob = True
 
@@ -50,5 +51,5 @@ docker_image = mschnepf/slc7-condocker
 ## Copy local variables to job
 getenv = USE_USER
 
-Queue
+Queue arguments from seq 48 6 150 |
 

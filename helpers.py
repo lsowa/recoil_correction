@@ -2,9 +2,12 @@ import uproot
 import pandas as pd
 import os
 import torch
+import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
 import torch.distributions as dist
+import seaborn as sns
+
 
 from unicodedata import decimal
 from torch.utils.data import DataLoader, TensorDataset
@@ -53,7 +56,9 @@ def evaluate_sequential(model, data, cond, device=None, batch=5000, rev=False):
 #
 
 # +
-def density_2d(hist, line, line_label='gaussian', hist_label='model(data)', xlim = [-3, 3], ylim = [-3, 3], save_as=None, xlabel=r'$u_\perp$', ylabel=r'$u_\parallel$'):
+def density_2d(hist, line, line_label='gaussian', hist_label='model(data)', 
+                xlim = [-3, 3], ylim = [-3, 3], save_as=None, xlabel=r'$u_\perp$', 
+                ylabel=r'$u_\parallel$', gridsize=(40,40), bins=100, levels=4, alpha=0.7):
     
     fig, ax = plt.subplots(2, 2, figsize=(8, 8), gridspec_kw={'width_ratios': [2, 1],
                                                                 'height_ratios': [1, 2]})
@@ -62,11 +67,9 @@ def density_2d(hist, line, line_label='gaussian', hist_label='model(data)', xlim
 
     # heatmap
     ax[1,0].hexbin(x=hist[:,0], y=hist[:,1], extent= xlim + ylim,
-                    label=hist_label, gridsize=(40,40), cmap='Blues', edgecolors=None)
-    counts, ybins, xbins = np.histogram2d(line[:,0], line[:,1], 
-                                            range=[xlim, ylim], bins=20)
-    contours = ax[1,0].contour(counts,extent=[xbins.min(),xbins.max(),ybins.min(),ybins.max()],
-                    colors='orange', levels=3)
+                    label=hist_label, gridsize=gridsize, cmap='Blues', edgecolors=None)
+    sns.kdeplot(x=line[:,0], y=line[:,1], shade=False, 
+                ax=ax[1,0], color='orange', levels=levels, alpha=alpha)
     ax[1,0].plot([], [], '-', label=line_label, color='orange')
     ax[1,0].set_ylim(ylim)
     ax[1,0].set_xlim(xlim)
@@ -75,9 +78,9 @@ def density_2d(hist, line, line_label='gaussian', hist_label='model(data)', xlim
     ax[1,0].legend(loc='lower left', bbox_to_anchor=(1,1))
 
     # x axis
-    _ = ax[0,0].hist(hist[:,0], bins=100, density=True, 
+    _ = ax[0,0].hist(hist[:,0], bins=bins, density=True, 
                         range=[xlim[0], xlim[1]], label=hist_label)
-    _ = ax[0,0].hist(line[:,0], bins=100, range=[xlim[0], xlim[1]],
+    _ = ax[0,0].hist(line[:,0], bins=bins, range=[xlim[0], xlim[1]],
                         density=True, histtype=u'step', label=line_label)
     ax[0,0].set_xticks([])
     ax[0,0].set_yticks([])
@@ -85,10 +88,10 @@ def density_2d(hist, line, line_label='gaussian', hist_label='model(data)', xlim
     ax[0,0].set_xlim(xlim)
 
     # y axis
-    _ = ax[1,1].hist(hist[:,1], bins=100, density=True, 
+    _ = ax[1,1].hist(hist[:,1], bins=bins, density=True, 
                         label=hist_label,range=[ylim[0], ylim[1]], 
                         orientation='horizontal')
-    _ = ax[1,1].hist(line[:,1], bins=100, density=True, range=[ylim[0], ylim[1]],
+    _ = ax[1,1].hist(line[:,1], bins=bins, density=True, range=[ylim[0], ylim[1]],
                         histtype=u'step', label=line_label, orientation='horizontal')
     ax[1,1].set_xticks([])
     ax[1,1].set_yticks([])
@@ -102,7 +105,6 @@ def density_2d(hist, line, line_label='gaussian', hist_label='model(data)', xlim
         plt.savefig(save_as)
         plt.clf()
     # -
-
 
 
 def layerwise2d(model, z, cond, save_path=None, xlim=[None, None], ylim=[None, None], input_scaler=None, rev=True):
@@ -166,7 +168,7 @@ def condition_correlation(model,
 
         dummy = cond.clone()
         dummy[:,cond_no] += delta
-        u, _ = evaluate_sequential(model, z, cond=dummy.float(), rev=True, device=device, batch=8000)
+        u, _ = evaluate_sequential(model, z, cond=dummy.float(), rev=True, device=device, batch=4000)
         u = u.to('cpu')
         if input_scaler is not None: 
             u = input_scaler.inverse_transform(u)
@@ -190,3 +192,53 @@ def condition_correlation(model,
     if save_path is not None:
         plt.savefig(save_path)
         plt.clf()
+        
+class Mlp(nn.Module):
+    def __init__(self, input_neurons, hidden_neurons, output_neurons, hiddenlayers):
+
+        nn.Module.__init__(self)
+
+        # mlp layers
+        self.mlplayers = nn.ModuleList([nn.Linear(input_neurons, hidden_neurons)])
+        self.mlplayers.extend([nn.Linear(hidden_neurons, hidden_neurons) for i in range(hiddenlayers + 1)])
+        self.mlplayers.append(nn.Linear(hidden_neurons, output_neurons))
+
+    def forward(self, x):
+        # input shape: (batch, features)
+        for mlplayer in self.mlplayers[:-1]:
+            x = mlplayer(x)
+            x = torch.tanh(x)
+
+        # new x: (batch, 1)
+        x = self.mlplayers[-1](x)
+        x = x.squeeze(-1)  # new x: (batch)
+        return x
+
+def calc_response(uperp, ptz, cut_max=200, cut_min=25):
+    keep = np.logical_and(cut_max > ptz, ptz > cut_min)
+    ptz = ptz[keep]
+    uperp = uperp[keep]
+    r = -uperp/ptz
+
+    bins = np.linspace(cut_min, cut_max, 10) # edges
+    bin_mids = (bins[1:]-bins[:-1])/2 + bins[:-1] # mids
+    
+    hist_raw, edges = np.histogram(ptz, bins = bins, range=[cut_min, cut_max])
+    hist_weighted, edges = np.histogram(ptz, bins = bins, weights=r, range=[cut_min, cut_max])
+    return hist_raw, hist_weighted, bins, bin_mids
+
+
+
+def response(uperp, ptz, save_path=None, cut_max=200, cut_min=25):
+    
+    hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp, ptz, cut_max=cut_max, cut_min=cut_min)
+    plt.errorbar(x=bin_mids, y=hist_weighted/hist_raw,
+                xerr=(bins[1:]-bins[:-1])/2, fmt='o', capsize=2)
+
+    plt.hlines([1], bins.min(), bins.max(), color='black')
+    plt.xlabel(r'$p_\mathrm{T}^Z$ in GeV')
+    plt.ylabel(r'$\langle \frac{\mathrm{u}_\parallel}{p_\mathrm{T}^Z}\rangle$')
+    plt.xlim([bins.min(), bins.max()])
+    plt.savefig(save_path)
+    plt.clf()
+

@@ -11,12 +11,12 @@ pip install --upgrade pip
 pip install -r requirements.txt
 pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113
 
-batch=500000
-flows=8
-nn_hidden=3
-nn_nodes=200
 testrun=0
 
-python recoil.py --batch $batch --flows $flows --nn-hidden $nn_hidden --nn-nodes $nn_nodes --test $testrun
-python evaluation.py --flows $flows --nn-hidden $nn_hidden --nn-nodes $nn_nodes --test $testrun --model 'output/model.pt' --output 'output/'
+for i in `seq 0 5`
+do
+    python nn.py --test $testrun --output output/$(($1+$i))/ &
+done
+wait
+#python nn.py --test $testrun --output output/$1/
 

@@ -29,6 +29,8 @@ from sklearn.preprocessing import StandardScaler
 from os.path import exists
 from argparse import ArgumentParser
 
+matplotlib.use('Agg')
+
 # +
 parser = ArgumentParser()
 parser.add_argument("-c", "--cuda", dest="cuda", default=0, type=int, help='Cuda number')
@@ -41,7 +43,12 @@ parser.add_argument("--output", dest="output", default='eval_dummy/', type=str, 
 
 parser.add_argument("--test", dest="test", default=1, type=int, help='Test run {True, False}')
 
-args = parser.parse_args("")
+# +
+# pass default arguments if executed as ipynb
+try: 
+    if get_ipython().__class__.__name__ == 'ZMQInteractiveShell': args = parser.parse_args("") 
+except:
+    args = parser.parse_args()
 
 print(args)
 # -
@@ -160,48 +167,22 @@ plt.legend()
 plt.savefig(args.output+'u_perp.pdf')
 plt.clf()
 
-
-
-# +
 # response
+response(uperp=u[:,0], ptz=dfmc['pt_vis_c'], 
+            save_path=args.output+'response.pdf', 
+            cut_max=200, cut_min=25)
 
-up = u[:,0]
-ptz = dfmc['pt_vis_c']
 
-xmin = 25
-xmax = 200
-
-keep = np.logical_and(xmax > ptz, ptz > xmin)
-ptz = ptz[keep]
-up = up[keep]
-r = -up/ptz
-
-bins = np.linspace(xmin,xmax,10)
-bin_mids = (bins[1:]-bins[:-1])/2 + bins[:-1]
-hist_raw, edges = np.histogram(ptz, bins = bins, range=[xmin, xmax])
-hist_weighted, edges = np.histogram(ptz, bins = bins, weights=r, range=[xmin, xmax])
-
-#plt.plot(bin_mids, hist_weighted/hist_raw, '.')
-plt.hlines([1], bins.min(), bins.max(), color='black')
-plt.errorbar(x=bin_mids, y=hist_weighted/hist_raw,
-            xerr=(bins[1:]-bins[:-1])/2, fmt='o', capsize=2)
-plt.xlabel(r'$p_\mathrm{T}^Z$ in GeV')
-plt.ylabel(r'$\langle \frac{\mathrm{u}_\parallel}{p_\mathrm{T}^Z}\rangle$')
-plt.xlim([bins.min(), bins.max()])
-plt.savefig(args.output+'response.pdf')
-plt.clf()
-# -
-
-n, bins, edges = plt.hist(up, histtype=r'step', bins=200, range=[-200, 200], 
-                            density=True, label=r'$\mathrm{u}_\parallel$')
-n1, bins1, edges1 = plt.hist(ptz, histtype=r'step', bins=200, range=[-200, 200], 
-                                density=True, label=r'$p_\mathrm{T}^Z}\rangle$')
-plt.xlim([-200, 200])
-plt.legend()
-plt.xlabel('GeV')
-plt.ylabel('a.u.')
-plt.savefig(args.output+'uperp_ptw.pdf')
-plt.clf()
+# n, bins, edges = plt.hist(up, histtype=r'step', bins=200, range=[-200, 200], 
+#                             density=True, label=r'$\mathrm{u}_\parallel$')
+# n1, bins1, edges1 = plt.hist(ptz, histtype=r'step', bins=200, range=[-200, 200], 
+#                                 density=True, label=r'$p_\mathrm{T}^Z}\rangle$')
+# plt.xlim([-200, 200])
+# plt.legend()
+# plt.xlabel('GeV')
+# plt.ylabel('a.u.')
+# plt.savefig(args.output+'uperp_ptw.pdf')
+# plt.clf()
 
 
 csingle_event = torch.concat([cmc[100,:].unsqueeze(0)]*10000)
@@ -229,7 +210,6 @@ for cond_no, cond_name in enumerate(cond):
                             save_path=args.output+'cond_scan_' + cond_name + '.pdf',
                             cond_name= r'$\Delta$',
                             xlim=[-100, 80],
-                            device=torch.device(0),
+                            device=torch.device(args.output),
                             title = cond_name + r'+$\Delta\cdot \sigma_\mathrm(' + cond_name + ')$')
     print(cond_name, 'done')
-
