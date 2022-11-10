@@ -30,6 +30,7 @@ from os.path import exists
 from argparse import ArgumentParser
 
 matplotlib.use('Agg')
+plt.rcParams.update({'axes.labelsize': 14})
 
 # +
 parser = ArgumentParser()
@@ -51,9 +52,8 @@ except:
     args = parser.parse_args()
 
 print(args)
-# -
-
 ensure_dir(args.output)
+# -
 
 if exists('/ceph/lsowa/recoil/dt.root'):
     dfdata = load_from_root('/ceph/lsowa/recoil/dt.root', test=args.test)
@@ -210,6 +210,6 @@ for cond_no, cond_name in enumerate(cond):
                             save_path=args.output+'cond_scan_' + cond_name + '.pdf',
                             cond_name= r'$\Delta$',
                             xlim=[-100, 80],
-                            device=torch.device(args.output),
-                            title = cond_name + r'+$\Delta\cdot \sigma_\mathrm(' + cond_name + ')$')
+                            device=torch.device(args.cuda),
+                            title = cond_name + r'+$\Delta\cdot \sigma_{}$'.format("{"+cond_name+"}"))
     print(cond_name, 'done')

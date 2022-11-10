@@ -25,6 +25,7 @@ from argparse import ArgumentParser
 from sklearn.preprocessing import StandardScaler
 
 matplotlib.use('Agg')
+plt.rcParams.update({'axes.labelsize': 14})
 
 # +
 parser = ArgumentParser()
@@ -127,29 +128,27 @@ model.load_state_dict(torch.load(args.model, map_location="cpu"))
 #
 # -
 
-csingle_event = cmc[100,:].unsqueeze(0)
-csingle_events = torch.concat([csingle_event]*10000)
+for event in range(100, 120):
+    csingle_event = cmc[event,:].unsqueeze(0)
+    csingle_events = torch.concat([csingle_event]*10000)
 
-model.cpu()
+    model.cpu()
+    z = pz.sample((csingle_events.shape[0], ))
+    u, _ = evaluate_sequential(model, z, cond=csingle_events.float(), rev=True)
+    u = input_scaler.inverse_transform(u)
 
-# +
-z = pz.sample((csingle_events.shape[0], ))
-u, _ = evaluate_sequential(model, z, cond=csingle_events.float(), rev=True)
+    u_mlps = []
+    for mlp in mlps:
+        with torch.no_grad():
+            out = mlp(csingle_event.float())
+            u_mlps.append(out)
+    u_mlps = torch.concat(u_mlps)
+    u_mlps = input_scaler.inverse_transform(u_mlps.numpy())
 
-u = input_scaler.inverse_transform(u)
-# -
-
-u_mlps = []
-for mlp in mlps:
-    with torch.no_grad():
-        out = mlp(csingle_event.float())
-        u_mlps.append(out)
-u_mlps = torch.concat(u_mlps)
-u_mlps = input_scaler.inverse_transform(u_mlps.numpy())
-
-density_2d(u, u_mlps, 
-            line_label=r'NN Ensamble NN(cond)$', hist_label=r'model(z, $\mathrm{cond}^\mathrm{fixed}_\mathrm{MC}$)=$\hat{y}$', 
-            xlim = [-160, 100], ylim = [-80, 30], save_as=args.output+'fixedevent_flows_mlpensemble.pdf', gridsize=(50,50), bins=100)
+    density_2d(u, u_mlps, 
+        line_label=r'NN Ensemble NN($\mathrm{cond}_\mathrm{MC}$)=$\vec{u}$', hist_label=r'model(z, $\mathrm{cond}_\mathrm{MC}$)=$\vec{u}$',
+        crosses = [dfmc["uP1_uncorrected"][event], dfmc["uP2_uncorrected"][event]], crosses_label='$\vec{u}^\mathrm{truth}_\mathrm{MC}$',
+        xlim = [-160, 100], ylim = [-80, 30], save_as=args.output+'fixedevent_flows_mlpensemble_eventid'+ str(event) +'.pdf', gridsize=(50,50), bins=100)
 
 # +
 #

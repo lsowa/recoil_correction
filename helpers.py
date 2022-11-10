@@ -57,7 +57,8 @@ def evaluate_sequential(model, data, cond, device=None, batch=5000, rev=False):
 
 # +
 def density_2d(hist, line, line_label='gaussian', hist_label='model(data)', 
-                xlim = [-3, 3], ylim = [-3, 3], save_as=None, xlabel=r'$u_\perp$', 
+                xlim = [-3, 3], ylim = [-3, 3], save_as=None, xlabel=r'$u_\perp$',
+                crosses = None, crosses_label = None, crosses_color='red',
                 ylabel=r'$u_\parallel$', gridsize=(40,40), bins=100, levels=4, alpha=0.7):
     
     fig, ax = plt.subplots(2, 2, figsize=(8, 8), gridspec_kw={'width_ratios': [2, 1],
@@ -71,12 +72,14 @@ def density_2d(hist, line, line_label='gaussian', hist_label='model(data)',
     sns.kdeplot(x=line[:,0], y=line[:,1], shade=False, 
                 ax=ax[1,0], color='orange', levels=levels, alpha=alpha)
     ax[1,0].plot([], [], '-', label=line_label, color='orange')
+    if crosses is not None:
+        ax[1,0].plot(crosses[0], crosses[1], '+', label=crosses_label, color=crosses_color)
     ax[1,0].set_ylim(ylim)
     ax[1,0].set_xlim(xlim)
     ax[1,0].set_xlabel(xlabel)
     ax[1,0].set_ylabel(ylabel)
     ax[1,0].legend(loc='lower left', bbox_to_anchor=(1,1))
-
+    
     # x axis
     _ = ax[0,0].hist(hist[:,0], bins=bins, density=True, 
                         range=[xlim[0], xlim[1]], label=hist_label)
