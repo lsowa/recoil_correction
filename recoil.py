@@ -25,6 +25,7 @@ import torch.optim as optim
 import numpy as np
 import matplotlib
 import os
+import wandb
 
 from os.path import exists
 from helpers import *
@@ -35,6 +36,7 @@ from argparse import ArgumentParser
 
 matplotlib.rcParams['figure.figsize'] = [15, 10]
 plt.rcParams.update({'axes.labelsize': 14})
+matplotlib.use('AGG')
 # -
 
 parser = ArgumentParser()
@@ -42,16 +44,26 @@ parser.add_argument("-c", "--cuda", dest="cuda", default=0, type=int, help='Cuda
 parser.add_argument("--batch", dest="batch", default=50000, type=int, help='batch size')
 parser.add_argument("--lr", dest="lr", default=0.001, type=float, help='learning rate')
 parser.add_argument("--test", dest="test", default=0, type=int, help='Test run {True, False}')
-
 parser.add_argument("-f", '--flows', dest="flows", default=2, type=int, help='Number of flows')
 parser.add_argument("--nn-hidden", dest="nn_hidden", default=2, type=int, help='Number of hidden layers for the NN')
 parser.add_argument("--nn-nodes", dest="nn_nodes", default=150, type=int, help='Number of hidden nodes for NN')
 
-args = parser.parse_args()
+# +
+# pass default arguments if executed as ipynb
+try: 
+    if get_ipython().__class__.__name__ == 'ZMQInteractiveShell': args = parser.parse_args("") 
+except:
+    args = parser.parse_args()
 print(args)
 
 folder = 'output/'
 ensure_dir(folder)
+# -
+
+wandb.config = {
+  "batch_size": args.batch
+}
+wandb.init(project="my-test-project")
 
 device = torch.device(args.cuda)
 
@@ -132,9 +144,10 @@ for k in range(args.flows):
     model.append(Fm.RNVPCouplingBlock, subnet_constructor=mlp_constructor, 
                     clamp=2, cond=0, cond_shape=(cmc.shape[1],))
 
-use_dataparallel = os.uname()[1] != 'deepthought_' and torch.cuda.device_count() > 1
+use_dataparallel = os.uname()[1] != 'deepthought' and torch.cuda.device_count() > 1
 if use_dataparallel:
     model = nn.DataParallel(model, device_ids=list(range(0,torch.cuda.device_count())))#
+    print("Use DataParallel on {} GPUs".format(torch.cuda.device_count()))
     #model = nn.parallel.DistributedDataParallel(model, device_ids=list(range(0,2)))
 
 #
@@ -200,7 +213,11 @@ while stopper<=15:
         best_model_dict = model.state_dict()
     epoch += 1
     print('Epoch: {:.0f}; train Loss: {:.3f}; val Loss: {:.3f}; stopper: {:.0f}; best val loss: {:.3f}\n'.format(epoch, epo_loss, loss_val, stopper, best_loss))
-    
+
+    # logging
+    wandb.log({"loss_train": epo_loss, "loss_val": loss_val})
+    wandb.watch(model)
+
     if epoch >= args.test and args.test > 0:
         break
 
