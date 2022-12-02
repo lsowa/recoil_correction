@@ -1,6 +1,9 @@
+#  request GPUs
+request_GPUs = 2
+
 ## Executable that will be run in job (has to be executable)
 Executable = ../job.sh
-
+arguments = $(request_GPUs)
 ## Output/Error/Log files 
 Output = ../condor_jobs/job_$(Cluster)_$(Process).out
 Error  = ../condor_jobs/job_$(Cluster)_$(Process).err
@@ -28,13 +31,11 @@ transfer_output_files = output/
 RequestCPUs = 10
 
 # RAM (in MB)
-RequestMemory = 200000
+RequestMemory = 20000
 
 #  24GB scratch space (in kB)
 request_disk = 24000000
 
-#  1 GPU
-request_GPUs = 4
 # Only available on TOpAS -> remote job
 +RemoteJob = True
 
