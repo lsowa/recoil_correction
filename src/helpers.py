@@ -53,11 +53,25 @@ def get_max_from_hist(n, bins):
     return mids[n_max]
 
 
-def density_2d(hist, line, line_label='gaussian', hist_label='model(data)', 
-                xlim = [-3, 3], ylim = [-3, 3], save_as=None, xlabel=r'$u_\perp$',
-                crosses = None, crosses_label = None, crosses_color='red',
-                ylabel=r'$u_\parallel$', gridsize=(40,40), bins=100, levels=4, alpha=0.7,
-                hist_mean_label=None, hist_mode_label=None, grid=False):
+def density_2d(hist, 
+               line, 
+               line_label='gaussian', 
+               hist_label='model(data)', 
+               xlim = [-3, 3], 
+               ylim = [-3, 3], 
+               xlabel=r'$u_\parallel$',
+               ylabel=r'$u_\perp$',
+               crosses = None, 
+               crosses_label = None, 
+               crosses_color='red',
+               gridsize=(40,40), 
+               bins=100, 
+               levels=4, 
+               alpha=0.7,
+               hist_mean_label=None, 
+               hist_mode_label=None, 
+               grid=False,
+               save_as=None):
     
     fig, ax = plt.subplots(2, 2, figsize=(8, 8), gridspec_kw={'width_ratios': [2, 1],
                                                                 'height_ratios': [1, 2]})

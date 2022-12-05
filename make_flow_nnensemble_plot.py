@@ -26,7 +26,7 @@ from argparse import ArgumentParser
 
 # +
 parser = ArgumentParser()
-parser.add_argument("--test", dest="test", default=1, type=int, help='Test run {True, False}')
+parser.add_argument("--test", dest="test", default=0, type=int, help='Test run {True, False}')
 parser.add_argument("-c", "--cuda", dest="cuda", default=2, type=int, help='Cuda number')
 parser.add_argument("--output", dest="output", default='flow_nnensemble_dummy/', type=str, help='Path for output files')
 parser.add_argument("--model", dest="model", default='8flows_3layer_200nodes_50000batch/model.pt', type=str, help='Path to model')
@@ -71,7 +71,7 @@ model.load_state_dict(torch.load(args.model, map_location="cpu"))
 
 pz = dist.MultivariateNormal(torch.zeros(2), torch.eye(2))
 
-for event in range(100, 111):
+for event in range(100, 121):
     csingle_event = dm.cmc[event,:].unsqueeze(0)
     csingle_events = torch.concat([csingle_event]*10000)
 
@@ -90,11 +90,11 @@ for event in range(100, 111):
 
     density_2d(u, 
                u_mlps, 
-               line_label=r'NN Ensemble NN($\mathrm{cond}_\mathrm{MC}$)=$\vec{u}$', 
-               hist_label=r'model(z, $\mathrm{cond}_\mathrm{MC}$)=$\vec{u}$',
+               line_label=r'Ensemble NN($\mathrm{cond}^\mathrm{MC}$)=$\vec{u}$', 
+               hist_label=r'model(z, $\mathrm{cond}^\mathrm{MC}$)=$\vec{u}$',
                crosses = [dm.dfmc["uP1_uncorrected"][event], 
                           dm.dfmc["uP2_uncorrected"][event]], 
-               crosses_label=r'$\vec{u}^\mathrm{truth}_\mathrm{MC}$',
+               crosses_label=r'$\vec{u}_\mathrm{uncorrected}^\mathrm{MC}$',
                xlim = [-160, 100], 
                ylim = [-80, 30], 
                save_as=args.output+'fixedevent_flows_mlpensemble_eventid'+ str(event) +'.pdf', 

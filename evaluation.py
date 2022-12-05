@@ -30,7 +30,7 @@ plt.rcParams.update({'axes.labelsize': 14})
 
 # +
 parser = ArgumentParser()
-parser.add_argument("--test", dest="test", default=1, type=int, help='Test run {True, False}')
+parser.add_argument("--test", dest="test", default=0, type=int, help='Test run {True, False}')
 parser.add_argument("-c", "--cuda", dest="cuda", default=0, type=int, help='Cuda number')
 parser.add_argument("--output", dest="output", default='eval_dummy/', type=str, help='Path for output files')
 parser.add_argument("--model", dest="model", default='8flows_3layer_200nodes_50000batch/model.pt', type=str, help='Path to model')
@@ -72,16 +72,28 @@ z, _ = evaluate_sequential(model, dm.data.float(), cond=dm.cdata.float())
 pz = dist.MultivariateNormal(torch.zeros(2), torch.eye(2))
 gaussian = pz.sample((100000, ))
 
-density_2d(z.cpu().detach().numpy(), gaussian.cpu().detach().numpy(), 
-            line_label=r'target gaussian $z$', hist_label=r'model(y, $\mathrm{cond}_\mathrm{Data}$)= $\hat{z}$', 
-            xlim = [-3, 3], ylim = [-3, 3], save_as=args.output+'2d_gaussian_data.pdf')
+density_2d(hist=z.cpu().detach().numpy(), 
+           line=gaussian.cpu().detach().numpy(), 
+           line_label=r'target Gaussian $z$', 
+           hist_label=r'model($\vec{u}^\mathrm{Data}$, $\mathrm{cond}^\mathrm{Data}$)= $\hat{z}$', 
+           xlim = [-3, 3], 
+           ylim = [-3, 3],
+           xlabel =r'x',
+           ylabel = r'y',
+           save_as=args.output+'2d_gaussian_data.pdf')
 
 
 z, _ = evaluate_sequential(model, dm.mc.float(), cond=dm.cmc.float())
 gaussian = pz.sample((100000, ))
-density_2d(z.cpu().detach().numpy(), gaussian.cpu().detach().numpy(), 
-            line_label=r'target gaussian $z$', hist_label=r'model(y, $\mathrm{cond}_\mathrm{MC}$)= $\hat{z}$', 
-            xlim = [-3, 3], ylim = [-3, 3], save_as=args.output+'2d_gaussian_mc.pdf')
+density_2d(hist=z.cpu().detach().numpy(), 
+           line=gaussian.cpu().detach().numpy(), 
+           line_label=r'target Gaussian $z$', 
+           hist_label=r'model($\vec{u}^\mathrm{MC}$, $\mathrm{cond}^\mathrm{MC}$)= $\hat{z}$', 
+           xlim = [-3, 3],
+           ylim = [-3, 3],
+           xlabel =r'x',
+           ylabel = r'y',
+           save_as=args.output+'2d_gaussian_mc.pdf')
 
 #
 # model -> u
@@ -96,19 +108,21 @@ u = dm.input_scaler.inverse_transform(u)
 data = dm.input_scaler.inverse_transform(dm.data)
 mc = dm.input_scaler.inverse_transform(dm.mc)
 
-density_2d(u, data, 
-            line_label=r'$u^\mathrm{MC}$', 
-            hist_label=r'model(z, $\mathrm{cond}_\mathrm{Data}$)=$\hat{u}$', 
-            xlim = [-160, 100], 
-            ylim = [-80, 30], 
-            save_as=args.output+'2d_comp_umc_to_data.pdf')
+density_2d(hist=u, 
+           line=data, 
+           line_label=r'$\vec{u}^\mathrm{MC}_\mathrm{uncorrected}$', 
+           hist_label=r'model(z, $\mathrm{cond}^\mathrm{Data}$)=$\hat{\vec{u}}$', 
+           xlim = [-160, 100], 
+           ylim = [-80, 30], 
+           save_as=args.output+'2d_comp_umc_to_data.pdf')
 
-density_2d(u, mc, 
-            line_label=r'$u^\mathrm{MC}$', 
-            hist_label=r'model(z, $\mathrm{cond}_\mathrm{MC}$)=$\hat{u}$', 
-            xlim = [-160, 100], 
-            ylim = [-80, 30], 
-            save_as=args.output+'2d_comp_umc_to_mc.pdf')
+density_2d(hist=u, 
+           line=mc, 
+           line_label=r'$\vec{u}^\mathrm{MC}_\mathrm{uncorrected}$', 
+           hist_label=r'model(z, $\mathrm{cond}^\mathrm{MC}$)=$\hat{\vec{u}}$', 
+           xlim = [-160, 100], 
+           ylim = [-80, 30], 
+           save_as=args.output+'2d_comp_umc_to_mc.pdf')
 
 
 #
@@ -117,14 +131,28 @@ density_2d(u, mc,
 
 # u parallel
 interval = [-170, 100]
-_ = plt.hist(u[:,0], density=True, bins=100, range=interval, 
+_ = plt.hist(u[:,0], 
+             density=True, 
+             bins=100, 
+             range=interval, 
              label=r'model(z,$c^\mathrm{MC}$)=$u_\parallel$')
-_ = plt.hist(data[:,0], histtype=u'step', density=True, bins=100, 
-                range=interval, linewidth=2, color='black', 
-                label=r'$u^\mathrm{Data}_\parallel$')
-_ = plt.hist(dm.dfmc['uP2_uncorrected'].values, histtype=u'step', density=True, bins=100, 
-                range=interval, linewidth=2, color='red', 
-                label=r'$u^\mathrm{MC}_\perp $ uncorrected')
+_ = plt.hist(data[:,0], 
+             histtype=u'step', 
+             density=True, 
+             bins=100, 
+             range=interval, 
+             linewidth=2, 
+             color='black', 
+             label=r'$u^\mathrm{Data}_\parallel$')
+_ = plt.hist(dm.dfmc['uP2_uncorrected'].values, 
+             histtype=u'step', 
+             density=True, 
+             bins=100, 
+             range=interval, 
+             linewidth=2, 
+             color='red',
+             label=r'$u^\mathrm{MC}_\perp $ uncorrected')
+
 plt.xlabel(r'$u_\perp$')
 plt.ylabel('a. u.')
 plt.legend()
@@ -151,7 +179,7 @@ u = dm.input_scaler.inverse_transform(u)
 density_2d(u, 
            mc, 
            line_label=r'target $y_\mathrm{MC}$', 
-           hist_label=r'model(z, $\mathrm{cond}^\mathrm{fixed}_\mathrm{MC}$)=$\hat{y}$', 
+           hist_label=r'model(z, $\mathrm{cond}_\mathrm{fixed}^\mathrm{MC}$)=$\hat{y}$', 
            xlim = [-160, 100], 
            ylim = [-80, 30], 
            save_as=args.output+'fixedevent.pdf')
