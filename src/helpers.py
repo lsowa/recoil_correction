@@ -67,7 +67,7 @@ def density_2d(hist,
                gridsize=(40,40), 
                bins=100, 
                levels=4, 
-               alpha=0.7,
+               alpha=0.9,
                hist_mean_label=None, 
                hist_mode_label=None, 
                grid=False,
@@ -110,10 +110,10 @@ def density_2d(hist,
     if crosses is not None:
         ax[1,0].plot(crosses[0], crosses[1], '*', label=crosses_label, color=crosses_color)
     if hist_mean_label is not None:
-        ax[1,0].plot(hist[:,0].mean(), hist[:,1].mean(), '+', label=hist_mean_label, color="green")
+        ax[1,0].plot(hist[:,0].mean(), hist[:,1].mean(), '*', label=hist_mean_label, color="green")
     if hist_mode_label is not None:
         ax[1,0].plot(get_max_from_hist(nx, binsx), get_max_from_hist(ny, binsy), 
-                        '+', label=hist_mode_label, color="magenta")
+                        '*', label=hist_mode_label, color="lime")
 
     if grid:
         ax[1,0].grid()

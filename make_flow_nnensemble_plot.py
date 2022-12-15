@@ -91,7 +91,7 @@ for event in range(100, 121):
     density_2d(u, 
                u_mlps, 
                line_label=r'Ensemble NN($\mathrm{cond}^\mathrm{MC}$)=$\vec{u}$', 
-               hist_label=r'model(z, $\mathrm{cond}^\mathrm{MC}$)=$\vec{u}$',
+               hist_label=r'NF(z, $\mathrm{cond}^\mathrm{MC}$)=$\vec{u}$',
                crosses = [dm.dfmc["uP1_uncorrected"][event], 
                           dm.dfmc["uP2_uncorrected"][event]], 
                crosses_label=r'$\vec{u}_\mathrm{uncorrected}^\mathrm{MC}$',
@@ -100,8 +100,8 @@ for event in range(100, 121):
                save_as=args.output+'fixedevent_flows_mlpensemble_eventid'+ str(event) +'.pdf', 
                gridsize=(50,50), 
                bins=100,
-               hist_mean_label='model mean', 
-               hist_mode_label='model mode', 
+               hist_mean_label='NF mean', 
+               hist_mode_label='NF mode', 
                grid=True)
 
 
