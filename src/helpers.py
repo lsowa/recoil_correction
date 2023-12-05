@@ -100,7 +100,7 @@ def density_2d(hist,
 
 
     # heatmap
-    ax[1,0].hexbin(x=hist[:,0], y=hist[:,1], extent= xlim + ylim,
+    ax[1,0].hexbin(x=hist[:,0], y=hist[:,1], extent= [-50, 50] + [-25, 25],#xlim + ylim,
                     label=hist_label, gridsize=gridsize, cmap='Blues', edgecolors=None)
 
     sns.kdeplot(x=line[:,0], y=line[:,1], shade=False, 
@@ -253,7 +253,7 @@ def response(uperp, ptz, save_path=None, cut_max=200, cut_min=25):
 
 def plt_mlp_flow_with_errors(bin_mids, mlp_means, mlp_ups, mlp_downs, flow_means, flow_ups, flow_downs, bins, output_folder,
                              mlp_label='MLP Ensemble 90% Conf. Int.', 
-                             flow_label='Averaged Flow 90% Conf. Int.'):
+                             flow_label='Mode of Flow 90% Conf. Int.'):
     
     plt.errorbar(x=bin_mids, y=mlp_means,
                 xerr=(bins[1:]-bins[:-1])/2, yerr=[mlp_means-mlp_downs, mlp_ups-mlp_means], fmt='o', capsize=2, label=mlp_label)

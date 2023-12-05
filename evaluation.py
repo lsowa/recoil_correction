@@ -66,7 +66,7 @@ model.cpu()
 #
 # model -> gaussian
 #
-
+'''
 z, _ = evaluate_sequential(model, dm.data.float(), cond=dm.cdata.float())
 
 pz = dist.MultivariateNormal(torch.zeros(2), torch.eye(2))
@@ -94,36 +94,44 @@ density_2d(hist=z.cpu().detach().numpy(),
            xlabel =r'x',
            ylabel = r'y',
            save_as=args.output+'2d_gaussian_mc.pdf')
+'''
 
 #
 # model -> u
 #
 
+pz = dist.MultivariateNormal(torch.zeros(2), torch.eye(2))
 z = pz.sample((dm.cmc.shape[0], ))
-u, _ = evaluate_sequential(model, z, dm.cmc.float(), rev=True)
-
+#u, _ = evaluate_sequential(model, z, dm.cmc.float(), rev=True)
+with torch.no_grad():
+    u, j = model(z, c=[dm.cmc.float()], rev=True)
+print("pred. done")
 u = u.cpu().detach().numpy()
 u = dm.input_scaler.inverse_transform(u)
 
 data = dm.input_scaler.inverse_transform(dm.data)
 mc = dm.input_scaler.inverse_transform(dm.mc)
+print('rescaling done')
+
 
 density_2d(hist=u, 
            line=data, 
-           line_label=r'$\vec{u}^\mathrm{MC}_\mathrm{uncorrected}$', 
-           hist_label=r'model(z, $\mathrm{cond}^\mathrm{Data}$)=$\hat{\vec{u}}$', 
+           line_label=r'$\vec{u}^\mathrm{Data}_\mathrm{uncorrected}$', 
+           hist_label=r'model(z, $\mathrm{cond}^\mathrm{MC}$)=$\hat{\vec{u}}$', 
            xlim = [-160, 100], 
-           ylim = [-80, 30], 
+           ylim = [-80, 30],
+           gridsize=(20,20),
            save_as=args.output+'2d_comp_umc_to_data.pdf')
 
-density_2d(hist=u, 
+density_2d(hist=u,
            line=mc, 
            line_label=r'$\vec{u}^\mathrm{MC}_\mathrm{uncorrected}$', 
            hist_label=r'model(z, $\mathrm{cond}^\mathrm{MC}$)=$\hat{\vec{u}}$', 
            xlim = [-160, 100], 
-           ylim = [-80, 30], 
+           ylim = [-80, 30],
+           gridsize=(20,20),
            save_as=args.output+'2d_comp_umc_to_mc.pdf')
-
+print("done")
 
 #
 #  Compare MC -> Data
@@ -131,19 +139,19 @@ density_2d(hist=u,
 
 # u parallel
 interval = [-170, 100]
-_ = plt.hist(u[:,0], 
+_ = plt.hist(u[:,1], 
              density=True, 
              bins=100, 
              range=interval, 
-             label=r'model(z,$c^\mathrm{MC}$)=$u_\parallel$')
-_ = plt.hist(data[:,0], 
+             label=r'model(z,$c^\mathrm{MC}$)=$u_\perp$')
+_ = plt.hist(data[:,1], 
              histtype=u'step', 
              density=True, 
              bins=100, 
              range=interval, 
              linewidth=2, 
              color='black', 
-             label=r'$u^\mathrm{Data}_\parallel$')
+             label=r'$u^\mathrm{Data}_\perp$')
 _ = plt.hist(dm.dfmc['uP2_uncorrected'].values, 
              histtype=u'step', 
              density=True, 
@@ -169,7 +177,12 @@ response(uperp=u[:,0],
         save_path=args.output+'response.pdf', 
         cut_max=200, cut_min=25)
 
+response(uperp=dm.dfmc['uP1_uncorrected'].values, 
+        ptz=dm.dfmc['pt_vis_c'], 
+        save_path=args.output+'response_test.pdf', 
+        cut_max=200, cut_min=25)
 
+'''
 # look at single event
 csingle_event = torch.concat([dm.cmc[100,:].unsqueeze(0)]*10000)
 z = pz.sample((csingle_event.shape[0], ))
@@ -207,3 +220,4 @@ for cond_no, cond_name in enumerate(cond):
                             device=torch.device(args.cuda),
                             title = cond_name + r'+$\Delta\cdot \sigma_{}$'.format("{"+cond_name+"}"))
     print(cond_name, 'done')
+'''

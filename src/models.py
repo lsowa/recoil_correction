@@ -50,7 +50,7 @@ def load_nn_ensemble(paths, input_neurons, hidden_neurons, output_neurons, hidde
                       hidden_neurons=hidden_neurons, 
                       output_neurons=output_neurons, 
                       hiddenlayers=hiddenlayers)
-            path = 'ensemble/' + path + '/model.pt'
+            path = '/work/lsowa/recoil_correction/ensemble/' + path + '/model.pt'
             mlp.load_state_dict(torch.load(path, map_location="cpu"))
             mlps.append(mlp)
     return mlps

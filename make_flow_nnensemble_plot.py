@@ -44,7 +44,7 @@ except:
 print(args)
 
 ensure_dir(args.output)
-device = torch.device(args.cuda)
+device = "cpu"#torch.device(args.cuda)
 
 
 #
@@ -54,7 +54,7 @@ device = torch.device(args.cuda)
 dm = DataManager(args.test)
 
 # mlps
-paths = os.listdir('ensemble/')
+paths = os.listdir('/work/lsowa/recoil_correction/ensemble/')
 mlps = load_nn_ensemble(paths, input_neurons=dm.cdata.shape[1], hidden_neurons=200, output_neurons=2, hiddenlayers=3)
 
 # flows
@@ -68,7 +68,7 @@ model.load_state_dict(torch.load(args.model, map_location="cpu"))
 #
 # one event multiple times
 #
-
+"""
 pz = dist.MultivariateNormal(torch.zeros(2), torch.eye(2))
 
 for event in range(100, 121):
@@ -103,7 +103,7 @@ for event in range(100, 121):
                hist_mean_label='model mean', 
                hist_mode_label='model mode', 
                grid=True)
-
+"""
 
 #
 # compare MLP ensemble with multiple evaluated NFlow
@@ -113,7 +113,7 @@ ptz = dm.dfmc['pt_vis_c']
 dm.cmc = dm.cmc.to(device)
 
 # Evaluate Mlp ensemble
-rs = []
+outs = []
 for mlp in mlps:
     with torch.no_grad():
         mlp.to(device)
@@ -121,13 +121,25 @@ for mlp in mlps:
         out = dm.input_scaler.inverse_transform(out.cpu().numpy())
         out = torch.tensor(out[:,0]) # keep u_perp
         mlp.cpu()
-    hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp=out, ptz=ptz, cut_max=200, cut_min=25)
-    r = hist_weighted/hist_raw
-    rs.append(r)
-rs = np.array(rs)
+        outs.append(out.cpu().numpy())
+    #if len(outs) > 1:
+    #    break
 
-mlp_downs, mlp_ups = np.percentile(rs, q=[5, 95], axis=0)
-mlp_means = np.mean(rs, axis=0)
+outs = np.array(outs)
+
+mlp_downs, mlp_ups = np.percentile(outs, q=[5, 95], axis=0)
+mlp_means = np.mean(outs, axis=0)
+print('mlp downs.sahope: ', mlp_downs.shape)
+
+hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp=mlp_downs, ptz=ptz, cut_max=200, cut_min=25)
+mlp_downs = hist_weighted/hist_raw
+hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp=mlp_ups, ptz=ptz, cut_max=200, cut_min=25)
+mlp_ups = hist_weighted/hist_raw
+hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp=mlp_means, ptz=ptz, cut_max=200, cut_min=25)
+mlp_means = hist_weighted/hist_raw
+print('mlp downs.sahope after: ', mlp_downs.shape)
+
+print("ensembles done")
 
 # evaluate Flow multiple times
 cmc = dm.cmc.to('cpu')
@@ -135,23 +147,53 @@ pz = dist.MultivariateNormal(torch.zeros(2), torch.eye(2))
 rs_flow = []
 flow_evaluations = 1
 
-for i in range(len(mlps)):
+def get_max_from_hist(n, bins):
+    mids = bins[:-1] + (bins[2] - bins[1])/2
+    n_max = n.argmax()
+    return mids[n_max]
+
+us = []
+for i in range(200):
     z = pz.sample((cmc.shape[0]*flow_evaluations, ))
-    u_flow, _ = evaluate_sequential(model, z, cond=torch.vstack([cmc]*flow_evaluations).float(), 
-                                    rev=True, device=device, batch=1000000)
+    #u_flow, _ = evaluate_sequential(model, z, cond=torch.vstack([cmc]*flow_evaluations).float(), 
+    #                                rev=True, device=device, batch=1000000)
+    with torch.no_grad():
+        u_flow, jac = model(z, c=[torch.vstack([cmc]*flow_evaluations).float()], rev=True)
     u_flow = u_flow.view(flow_evaluations, cmc.shape[0], u_flow.shape[1])
     u_flow = u_flow.mean(dim=0)
-    
     u_flow = dm.input_scaler.inverse_transform(u_flow.cpu().numpy())
-    hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp=u_flow[:,0], ptz=ptz, cut_max=200, cut_min=25)
-    r = hist_weighted/hist_raw
-    rs_flow.append(r)
+    us.append(u_flow[:,0]) #keep perp
+    #if len(us) > 20:
+    #    break
 
-flow_downs, flow_ups = np.percentile(rs_flow, q=[5, 95], axis=0)
-flow_means = np.mean(rs_flow, axis=0)
+print(us)
+us = np.array(us)
+print(us.shape)
+
+flow_downs, flow_ups = np.percentile(us, q=[5, 95], axis=0)
+print('Flow downs shape: ', flow_downs.shape)
+
+flow_modes = []
+for ev in range(us.shape[1]):
+    #print(us[:, ev].shape)
+    n, bns = np.histogram(us[:, ev], bins=50)
+    mode = get_max_from_hist(n, bns)
+    flow_modes.append(mode)
+
+flow_modes = np.array(flow_modes)
+print('Flow modes shape: ', flow_modes.shape)
+
+hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp=flow_downs, ptz=ptz, cut_max=200, cut_min=25)
+flow_downs = hist_weighted/hist_raw
+hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp=flow_ups, ptz=ptz, cut_max=200, cut_min=25)
+flow_ups = hist_weighted/hist_raw
+hist_raw, hist_weighted, bins, bin_mids = calc_response(uperp=flow_modes, ptz=ptz, cut_max=200, cut_min=25)
+flow_modes = hist_weighted/hist_raw
+
+
 
 # plot comparison
 
-plt_mlp_flow_with_errors(bin_mids, mlp_means, mlp_ups, mlp_downs, flow_means, 
+plt_mlp_flow_with_errors(bin_mids, mlp_means, mlp_ups, mlp_downs, flow_modes, 
                          flow_ups, flow_downs, bins, output_folder=args.output)
 
